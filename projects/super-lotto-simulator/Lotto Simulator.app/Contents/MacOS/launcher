@@ -1,13 +1,15 @@
 #!/bin/bash
-# Starts the Lotto Simulator GUI with the project's .venv. Looks for the project
-# next to this .app first, so the folder can be moved; falls back to where it was built.
-BUNDLE_PARENT="$(cd "$(dirname "$0")/../../.." && pwd)"
-PROJECT="$BUNDLE_PARENT"
-[ -f "$PROJECT/lotto_gui.py" ] || PROJECT="/Users/Loren/Documents/Wynago/Lotto Simulator"
+# Starts the Lotto Simulator GUI with the project's .venv.
+# The .app must stay inside its project folder (next to lotto_gui.py).
+PROJECT="$(cd "$(dirname "$0")/../../.." && pwd)"
 PY="$PROJECT/.venv/bin/python"
 LOG="$HOME/Library/Logs/Lotto Simulator.log"
 
-if [ ! -x "$PY" ] || [ ! -f "$PROJECT/lotto_gui.py" ]; then
+if [ ! -f "$PROJECT/lotto_gui.py" ]; then
+  osascript -e 'display alert "Can’t find the Lotto Simulator code" message "Keep “Lotto Simulator.app” inside its project folder, next to lotto_gui.py. To launch it from the Dock or Applications, use an alias (Make Alias in Finder) instead of moving the app." as critical'
+  exit 1
+fi
+if [ ! -x "$PY" ]; then
   osascript -e 'display alert "Lotto Simulator isn’t set up yet" message "Open the project folder and double-click “Set Up Lotto Simulator.command”, then open the app again." as critical'
   exit 1
 fi

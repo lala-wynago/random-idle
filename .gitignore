@@ -1,4 +1,4 @@
-# Data: never commit draw results or generated outputs
+# Data: never commit draw results, personal data or generated outputs
 Past Results/
 output/
 *.xlsx
@@ -6,9 +6,21 @@ output/
 *.csv
 ~$*
 
-# Local environment
+# Python
 .venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+
+# Editors / OS / local tools
 .claude/
+.idea/
+.vscode/
 .DS_Store

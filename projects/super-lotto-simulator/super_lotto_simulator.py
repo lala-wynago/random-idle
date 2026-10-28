@@ -45,11 +45,10 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Optional
 
+import matplotlib
 import numpy as np
 import pandas as pd
 from scipy import optimize, stats
-
-import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -368,7 +367,7 @@ class PoolState:
     cache: dict = field(default_factory=dict)
 
     @classmethod
-    def build(cls, name: str, values: np.ndarray, lo: int, hi: int, k: int) -> "PoolState":
+    def build(cls, name: str, values: np.ndarray, lo: int, hi: int, k: int) -> PoolState:
         values = values.reshape(len(values), -1)
         T, N = len(values), hi - lo + 1
         X = np.zeros((T, N), dtype=np.float64)
@@ -417,7 +416,7 @@ class DrawHistory:
     structure: np.ndarray    # (T+1, 3) scaled sum/odd/range of the previous draw
 
     @classmethod
-    def from_frame(cls, df: pd.DataFrame, rep: PrepReport) -> "DrawHistory":
+    def from_frame(cls, df: pd.DataFrame, rep: PrepReport) -> DrawHistory:
         mains = df[["n1", "n2", "n3", "n4", "n5"]].to_numpy(dtype=int)
         supers = df["super"].to_numpy(dtype=int)
         (mlo, mhi), (slo, shi) = rep.main_range, rep.super_range
@@ -434,7 +433,7 @@ class DrawHistory:
     def T(self) -> int:
         return len(self.main_values)
 
-    def view(self, t: int) -> "HistoryView":
+    def view(self, t: int) -> HistoryView:
         """A view that only exposes draws ``0..t-1`` (for predicting draw ``t``)."""
         if not 0 <= t <= self.T:
             raise ValueError(f"t={t} outside 0..{self.T}")
@@ -499,7 +498,7 @@ class StructureConstraint:
     odd_allowed: frozenset
 
     @classmethod
-    def from_values(cls, mains: np.ndarray, coverage: float = 0.95, min_share: float = 0.05) -> "StructureConstraint":
+    def from_values(cls, mains: np.ndarray, coverage: float = 0.95, min_share: float = 0.05) -> StructureConstraint:
         sums = mains.sum(axis=1)
         tail = (1 - coverage) / 2
         lo, hi = np.quantile(sums, [tail, 1 - tail])
@@ -629,7 +628,7 @@ class LottoModel(ABC):
         self._pred: Optional[Prediction] = None
         self._view: Optional[HistoryView] = None
 
-    def fit(self, view: HistoryView) -> "LottoModel":
+    def fit(self, view: HistoryView) -> LottoModel:
         self._view = view
         main = normalize_inclusion(self._pool_weights(view.main, view), view.main.k)
         sup = normalize_inclusion(self._pool_weights(view.super_, view), 1)
@@ -817,7 +816,7 @@ class MLModel(LottoModel):
             clf.fit(Xtr, ytr)
         return clf
 
-    def fit(self, view: HistoryView) -> "MLModel":
+    def fit(self, view: HistoryView) -> MLModel:
         for pool in (view.main, view.super_):
             last = self._fit_t.get(pool.name)
             if last is None or view.t - last >= self.refit_every or view.t < last:
@@ -859,11 +858,11 @@ class EnsembleModel(LottoModel):
         sup = np.einsum("m,mn->n", w_super, np.stack([p.super_ for p in preds]))
         return Prediction(normalize_inclusion(main, K_MAIN), sup / sup.sum())
 
-    def fit(self, view: HistoryView) -> "EnsembleModel":
+    def fit(self, view: HistoryView) -> EnsembleModel:
         preds = [c.fit(view).predict_proba() for c in self.components]
         return self.fit_from_predictions(view, preds)
 
-    def fit_from_predictions(self, view: HistoryView, preds: list[Prediction]) -> "EnsembleModel":
+    def fit_from_predictions(self, view: HistoryView, preds: list[Prediction]) -> EnsembleModel:
         self._view = view
         self._pred = self.combine(preds, self.w_main, self.w_super)
         return self
@@ -1218,7 +1217,7 @@ def _leaderboard(rec: pd.DataFrame, models: list[str], cfg: Config, rng: np.rand
         rows.append(row)
     lb = pd.DataFrame(rows)
     adj = bh_adjust(np.array([p for *_, p in pvals]))
-    for (m, metric, _), pa in zip(pvals, adj):
+    for (m, metric, _), pa in zip(pvals, adj, strict=True):
         lb.loc[lb["model"] == m, f"padj_{metric}"] = pa
     padj_cols = [f"padj_{k}" for k in BACKTEST_METRICS]
     sig = (lb[padj_cols] < cfg.alpha).any(axis=1)
@@ -1285,7 +1284,7 @@ def chart_backtest(lb: pd.DataFrame, path: Path) -> None:
     sub = lb[lb["model"] != "baseline"].reset_index(drop=True)
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.2), sharey=True)
     y = np.arange(len(sub))
-    for ax, metric in zip(axes, BACKTEST_METRICS):
+    for ax, metric in zip(axes, BACKTEST_METRICS, strict=True):
         d, lo, hi = sub[f"d_{metric}"], sub[f"d_{metric}_lo"], sub[f"d_{metric}_hi"]
         colors = np.where(sub[f"padj_{metric}"] < 0.05, C_ACCENT, C_MODEL)
         ax.errorbar(d, y, xerr=[d - lo, hi - d], fmt="none", ecolor=C_BASE, elinewidth=1.5, capsize=3)
@@ -1542,7 +1541,8 @@ def run_pipeline(cfg: Config) -> RunResult:
     super_tbl = number_table(hist.super_, hist.T, cfg.half_life)
     feats = structural_features(hist.main_values, mlo, mhi)
     ref_rng = np.random.default_rng([cfg.seed, 7])
-    uni_pred = Prediction(np.full(hist.main.size, K_MAIN / hist.main.size), np.full(hist.super_.size, 1 / hist.super_.size))
+    uni_pred = Prediction(np.full(hist.main.size, K_MAIN / hist.main.size),
+                          np.full(hist.super_.size, 1 / hist.super_.size))
     uni_mains, _ = sample_tickets(uni_pred, 100_000, ref_rng, mlo, slo)
     uniform_feats = structural_features(uni_mains, mlo, mhi)
     n_odd = sum(1 for v in range(mlo, mhi + 1) if v % 2 == 1)

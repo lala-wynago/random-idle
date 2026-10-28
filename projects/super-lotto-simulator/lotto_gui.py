@@ -24,11 +24,10 @@ import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
-from typing import Any, Optional
-
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+from typing import Any, Optional
 
 APP_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(APP_DIR))
@@ -151,7 +150,7 @@ def pick_color(widget: tk.Misc, *candidates: str) -> str:
 class QueueLogHandler(logging.Handler):
     """Forward simulator log records to the GUI thread."""
 
-    def __init__(self, q: "queue.Queue[tuple[str, Any]]") -> None:
+    def __init__(self, q: queue.Queue[tuple[str, Any]]) -> None:
         super().__init__()
         self.q = q
 
@@ -229,7 +228,7 @@ class LottoApp:
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.events: "queue.Queue[tuple[str, Any]]" = queue.Queue()
+        self.events: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.input_path: Optional[Path] = None
         self.result: Optional[sim.RunResult] = None
         self.worker: Optional[threading.Thread] = None
@@ -380,7 +379,7 @@ class LottoApp:
             row_lbl.grid(row=row * 2, column=0, sticky="w", padx=(0, 10))
             row_entry = ttk.Entry(outbox, textvariable=var)
             row_entry.grid(row=row * 2, column=1, sticky="ew")
-            choose = ttk.Button(outbox, text="Choose…", command=lambda v=var, l=label: self._choose_folder(v, l))
+            choose = ttk.Button(outbox, text="Choose…", command=lambda v=var, name=label: self._choose_folder(v, name))
             choose.grid(row=row * 2, column=2, padx=(8, 0))
             row_note = ttk.Label(outbox, text=note, font=("Helvetica Neue", 11),
                                  foreground=pick_color(parent, "systemSecondaryLabelColor", "#6e6e73"))
