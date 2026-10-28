@@ -1,0 +1,14 @@
+# Data: never commit draw results or generated outputs
+Past Results/
+output/
+*.xlsx
+*.xls
+*.csv
+~$*
+
+# Local environment
+.venv/
+__pycache__/
+*.pyc
+.claude/
+.DS_Store

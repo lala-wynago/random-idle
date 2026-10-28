@@ -1,0 +1,20 @@
+#!/bin/bash
+# Starts the Lotto Simulator GUI with the project's .venv. Looks for the project
+# next to this .app first, so the folder can be moved; falls back to where it was built.
+BUNDLE_PARENT="$(cd "$(dirname "$0")/../../.." && pwd)"
+PROJECT="$BUNDLE_PARENT"
+[ -f "$PROJECT/lotto_gui.py" ] || PROJECT="/Users/Loren/Documents/Wynago/Lotto Simulator"
+PY="$PROJECT/.venv/bin/python"
+LOG="$HOME/Library/Logs/Lotto Simulator.log"
+
+if [ ! -x "$PY" ] || [ ! -f "$PROJECT/lotto_gui.py" ]; then
+  osascript -e 'display alert "Lotto Simulator isn’t set up yet" message "Open the project folder and double-click “Set Up Lotto Simulator.command”, then open the app again." as critical'
+  exit 1
+fi
+cd "$PROJECT"
+# Finder may start script-based apps under Rosetta; force native arm64 on Apple Silicon
+# so Python can load the arm64 packages installed in .venv.
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+  exec arch -arm64 "$PY" "$PROJECT/lotto_gui.py" "$@" >>"$LOG" 2>&1
+fi
+exec "$PY" "$PROJECT/lotto_gui.py" "$@" >>"$LOG" 2>&1
